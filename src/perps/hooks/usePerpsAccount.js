@@ -3,6 +3,7 @@ import { fetchAccount, fetchOpenOrders, fetchPositions } from "../api/asterTrade
 import { asterWs } from "../api/asterWs";
 import { isValid, toUnits } from "../utils/decimal";
 import { perpsEquity } from "../utils/accountTotals";
+import { syncPerpsAlerts } from "../alerts/alertsClient";
 
 const POLL_MS = 5000;
 const NO_DEPOSIT_CODE = -5050;
@@ -31,6 +32,7 @@ const setStore = (patch) => {
 let current = null; // { agent, user, key }
 let inflight = null;
 let timer = null;
+let forceAlerts = false; // next completed refresh uploads the alerts snapshot without throttling
 const activeTokens = new Set();
 
 const keyOf = (agent, user) => (agent && user ? `${agent.address}|${user}` : null);
@@ -39,6 +41,10 @@ const refreshStore = () => {
   if (!current) return Promise.resolve();
   if (inflight) return inflight;
   const { agent, user, key } = current;
+  // Liquidation alerts: an explicit refresh (after an order / close / deposit / withdraw /
+  // pull-to-refresh) uploads at once; the 5 s poll is throttled inside syncPerpsAlerts.
+  const alertsForce = forceAlerts;
+  forceAlerts = false;
   setStore({ loading: true });
   inflight = (async () => {
     const [acc, pos, ord] = await Promise.all([
@@ -78,6 +84,15 @@ const refreshStore = () => {
     }
     if (!ord.error && Array.isArray(ord.data)) patch.openOrders = ord.data;
     setStore(patch);
+    if (!acc.error && acc.data && !pos.error && Array.isArray(pos.data)) {
+      syncPerpsAlerts({
+        reason: alertsForce ? "refresh" : "poll",
+        force: alertsForce,
+        user,
+        agent,
+        raw: { account: acc.data, positionRisk: pos.data },
+      });
+    }
   })().finally(() => {
     inflight = null;
     setStore({ loading: false });
@@ -143,7 +158,11 @@ export const usePerpsAccount = ({ agent, user, active, onAgentInvalid }) => {
     };
   }, [active, key]);
 
-  const refresh = useCallback(() => refreshStore(), []);
+  const refresh = useCallback(() => {
+    // If a poll is already running, the next refresh (≤5 s) carries the forced alerts upload.
+    forceAlerts = true;
+    return refreshStore();
+  }, []);
 
   // Live mark prices for open positions.
   const positions = key && snap.key === key ? snap.positions : [];

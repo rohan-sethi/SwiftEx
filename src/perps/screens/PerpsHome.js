@@ -29,6 +29,7 @@ import { useAppActive } from "../hooks/useAppActive";
 import PositionsSection from "../components/PositionsSection";
 import { DepositSheet, WithdrawSheet } from "../components/FundsSheets";
 import PerpsHistory from "../components/PerpsHistory";
+import { removePerpsAlertsDevice } from "../alerts/alertsClient";
 import { usePerpsAccount } from "../hooks/usePerpsAccount";
 import { useDepositTracker, onPerpsBalance, clearDeposit, watchCredit, mayBeCredited } from "../storage/depositTracker";
 import { useWithdrawTracker, watchWithdraw, clearWithdraw } from "../storage/withdrawTracker";
@@ -313,7 +314,13 @@ const PerpsHome = () => {
       "This removes the trading key from this device. You can enable trading again at any time.",
       [
         { text: "Cancel", style: "cancel" },
-        { text: "Reset", onPress: () => agentState.reset() },
+        {
+          text: "Reset",
+          onPress: () => {
+            agentState.reset();
+            removePerpsAlertsDevice("perps-reset"); // Perps disconnected: stop liquidation alerts
+          },
+        },
       ]
     );
   };

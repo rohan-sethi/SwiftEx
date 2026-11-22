@@ -35,6 +35,7 @@ import { Wallet_screen_header } from "../reusables/ExchangeHeader";
 import AccessNativeStorage from "./AccessNativeStorage";
 import apiHelper from "../exchange/crypto-exchange-front-end-main/src/apiHelper";
 import AuthRequest from "../reusables/AuthRequest";
+import { onWalletRemovedForAlerts } from "../../perps/alerts/alertsClient";
 import CustomInfoProvider from "../exchange/crypto-exchange-front-end-main/src/components/CustomInfoProvider";
 import { PPOST, proxyRequest } from "../exchange/crypto-exchange-front-end-main/src/api";
 
@@ -202,6 +203,7 @@ const Wallet_selection_bottom = ({ onClose }) => {
   const performeDeleteWalletAction=async(removeWalletReq)=>{
     const response=await AccessNativeStorage.delete(removeWalletReq.walletId);
       if(response==="wallet_removed"||response.wallet_removed==="wallet_removed"){
+        await onWalletRemovedForAlerts(removeWalletReq?.address); // stop Perps liquidation alerts for it
       if(wallets.length===1){
         const res = await AsyncStorageLib.getItem("AppStatusChecks");
         const parseres = JSON.parse(res);

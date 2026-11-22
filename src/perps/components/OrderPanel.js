@@ -31,6 +31,7 @@ import { logPerpsError } from "../utils/perpsLog";
 import { sleep, withTimeout } from "../utils/async";
 import { orderResultContent } from "../utils/positionFocus";
 import OrderResultSheet from "./OrderResultSheet";
+import { maybeAskForAlertsPermission } from "../alerts/notificationPrompt";
 const RULES_TIMEOUT_MS = 35000; // exchangeInfo refresh (30s request + margin)
 // Safety cap only: each request already times out at 15s (margin + leverage + order + 2 TP/SL
 // <= ~75s). The cap must exceed that, so it can never fire while the order is still being sent.
@@ -685,8 +686,14 @@ const OrderPanel = ({ theme, symbol, baseAsset, meta, markPrice, maxLeverage, ag
         theme={theme}
         result={placed ? placed.content : null}
         onClose={() => setPlaced(null)}
-        onView={() => placed && onShowNew && onShowNew({ ...placed.focus, strength: "strong", go: true })}
-        onDone={() => placed && onShowNew && onShowNew({ ...placed.focus, strength: "light" })}
+        onView={() => {
+          if (placed && onShowNew) onShowNew({ ...placed.focus, strength: "strong", go: true });
+          if (placed && placed.focus.kind === "position") maybeAskForAlertsPermission();
+        }}
+        onDone={() => {
+          if (placed && onShowNew) onShowNew({ ...placed.focus, strength: "light" });
+          if (placed && placed.focus.kind === "position") maybeAskForAlertsPermission();
+        }}
       />
     </View>
   );

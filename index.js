@@ -16,6 +16,7 @@ import { name as appName } from './app.json';
 import messaging from '@react-native-firebase/messaging';
 import { firebaseNotification } from './src/Dashboard/notifications/firebasePushMessages';
 import notifee, { EventType } from '@notifee/react-native';
+import { notePerpsAlertOpened } from './src/perps/alerts/notificationRoute';
 async function requestPermission() {
   const authStatus = await messaging().requestPermission();
   const enabled =
@@ -48,6 +49,7 @@ messaging().setBackgroundMessageHandler(async (remoteMessage) => {
 notifee.onBackgroundEvent(async ({ type, detail }) => {
   if (type === EventType.PRESS) {
     console.log('Notification:', detail.notification?.data);
+    notePerpsAlertOpened(detail.notification); // Perps liquidation alert -> open Perps
   }
 });
 requestPermission();

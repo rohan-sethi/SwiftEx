@@ -46,6 +46,15 @@ const loadAgentOnce = (user) => {
   return promise;
 };
 
+// Read-only: the usable trading key for `user` (this session's shared copy, else secure storage),
+// or null. Used by liquidation alerts outside the Perps screens; never changes the shared state.
+export const getUsableAgent = async (user) => {
+  if (!user || !isAgentStoreAvailable()) return null;
+  if (shared.user === user && shared.status) return isUsable(shared.agent) ? shared.agent : null;
+  const stored = await loadAgentOnce(user);
+  return isUsable(stored) ? stored : null;
+};
+
 // status: checking | no-evm | locked (native secure storage missing, e.g. old build + OTA JS) | not-enabled | enabling | enabled
 export const usePerpsAgent = (active) => {
   const user = useMainEvmAddress();

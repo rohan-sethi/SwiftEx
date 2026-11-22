@@ -19,6 +19,7 @@ import Icon from "../icon";
 import { colors } from "../Screens/ThemeColorsConfig";
 import PerpsHome from "../perps/screens/PerpsHome";
 import { usePerpsAvailability } from "../perps/usePerpsAvailability";
+import { usePerpsAlertsBridge } from "../perps/alerts/usePerpsAlertsBridge";
 import EarnModule from "../earn/EarnModule";
 import { useEarnPositionCount } from "../earn/store";
 
@@ -33,6 +34,8 @@ const Dashboard = ({ navigation }) => {
   const [token, setToken] = useState("");
   // Perps tab shows only when perps is on (and not blocked). Discover is not a tab; it opens from the home banner.
   const { perpsVisible } = usePerpsAvailability(Focused_screen);
+  // Perps liquidation alerts: foreground uploads + open Perps when an alert is tapped.
+  usePerpsAlertsBridge({ navigation, perpsVisible });
   const earnPositionCount = useEarnPositionCount();
 
   const updateState = () => {

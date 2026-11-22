@@ -9,13 +9,22 @@ export const firebaseNotification = async (remoteMessage) => {
     return; 
   }
 
-  const channelId = await notifee.createChannel({
-    id: 'default',
-    name: 'Default Channel',
-    importance: AndroidImportance.HIGH,
-    sound: 'default',
-    vibration: true,
-  });
+  const isPerpsAlert = remoteMessage?.data?.type === 'perps_liquidation';
+  const channelId = isPerpsAlert
+    ? await notifee.createChannel({
+        id: 'perps_alerts',
+        name: 'Perps liquidation alerts',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+      })
+    : await notifee.createChannel({
+        id: 'default',
+        name: 'Default Channel',
+        importance: AndroidImportance.HIGH,
+        sound: 'default',
+        vibration: true,
+      });
 
   await notifee.displayNotification({
     id: remoteMessage.messageId ?? String(Date.now()),

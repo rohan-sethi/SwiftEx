@@ -14,6 +14,7 @@ import store from '../../components/Redux/Store'
 import { GetWalletTokens, CHAINS } from '../../utilities/TokenUtils'
 import { getAssetId } from '../../utilities/TokenManageHook'
 import { MULTICHAIN_PORTFOLIO, PORTFOLIO_CONFIG } from '../../components/Redux/actions/type'
+import { notePerpsAlertOpened } from '../../perps/alerts/notificationRoute'
 
 
 const copyToClipboard = (text) => {
@@ -218,6 +219,8 @@ const useFirebaseCloudMessaging = (navigation) => {
         'Notification caused app to open from background state:',
         remoteMessage.notification
       )
+      // Perps liquidation alert: open Perps (handled once the Home tabs are ready).
+      notePerpsAlertOpened(remoteMessage)
       if (shouldRefreshPortfolioForTitle(remoteMessage?.notification?.title)) {
         refreshPortfolioOnNotification('onNotificationOpenedApp')
       }
@@ -235,6 +238,7 @@ const useFirebaseCloudMessaging = (navigation) => {
             remoteMessage.notification
           )
           setInitialRoute(remoteMessage.data.type) // e.g. "Settings"
+          notePerpsAlertOpened(remoteMessage)
           if (shouldRefreshPortfolioForTitle(remoteMessage?.notification?.title)) {
             refreshPortfolioOnNotification('getInitialNotification')
           }

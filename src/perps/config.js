@@ -5,6 +5,9 @@ import { ENVIRONMENT } from "../Dashboard/constants";
 // Dev builds only until the pending native work is done (secure agent-key storage, withdraw signing).
 export const PERPS_ENABLED = ENVIRONMENT!=="TESTNET";
 
+// Liquidation alerts server (public URL, not a secret). See src/perps/alerts/alertsClient.js.
+export const PERPS_ALERTS_URL = "https://alerts.swiftexchange.io";
+
 // ISO country codes (from AppStatusChecks.countryCode) where Perps is hidden.
 export const PERPS_BLOCKED_COUNTRIES = ['US', 'GB', 'HK'];
 
