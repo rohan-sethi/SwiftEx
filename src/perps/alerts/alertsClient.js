@@ -14,8 +14,10 @@ import { asterFetch } from "../api/asterPublic";
 import { getUsableAgent } from "../hooks/usePerpsAgent";
 import { logPerpsError } from "../utils/perpsLog";
 import { createAlertsSyncer } from "./syncer";
+import { buildSnapshot, marginRatios } from "./snapshot";
+import { loadAlertPrefs, saveAlertsEnabled, saveMutedKeys } from "./prefs";
 
-export { buildSnapshot } from "./snapshot";
+export { buildSnapshot };
 
 export const PERPS_ALERTS_CHANNEL = "perps_alerts";
 export { PERPS_ALERT_TYPE } from "./notificationRoute";
@@ -118,6 +120,8 @@ const syncer = createAlertsSyncer({
   saveWallet: (w) => (w ? AsyncStorage.setItem(WALLET_KEY, w) : AsyncStorage.removeItem(WALLET_KEY)).catch(() => {}),
   loadWallet: () => AsyncStorage.getItem(WALLET_KEY).catch(() => null),
   log: (e) => logPerpsError(e),
+  getPrefs: loadAlertPrefs,
+  saveMuted: saveMutedKeys,
   schedule: (fn, ms) => setTimeout(fn, ms),
 });
 
@@ -178,4 +182,47 @@ export const onWalletRemovedForAlerts = async (address) => {
   } catch (e) {
     return { removed: false };
   }
+};
+
+// ---- Settings sheet ----------------------------------------------------------------------
+
+// Master switch (per wallet). Off: stop all uploads + DELETE this device. On: upload at once.
+export const setPerpsAlertsEnabled = async (user, enabled) => {
+  try {
+    await saveAlertsEnabled(user, enabled);
+    if (!enabled) return await removePerpsAlertsDevice("alerts-off");
+    return await syncPerpsAlerts({ reason: "alerts-on", force: true, user });
+  } catch (e) {
+    logPerpsError({ step: "alerts:enable", msg: e && e.message });
+    return null;
+  }
+};
+
+// One switch in the list ('cross' / 'iso:SYMBOL:LONG|SHORT'). Uploads at once.
+export const setPerpsAlertMuted = async (user, key, muted) => {
+  try {
+    const prefs = await loadAlertPrefs(user);
+    const set = new Set(prefs.muted);
+    if (muted) set.add(key);
+    else set.delete(key);
+    await saveMutedKeys(user, [...set]);
+    return await syncPerpsAlerts({ reason: muted ? "mute" : "unmute", force: true, user });
+  } catch (e) {
+    logPerpsError({ step: "alerts:mute", msg: e && e.message });
+    return null;
+  }
+};
+
+// Rows for the sheet from data the Perps screen already polled ({ account, positionRisk }).
+// Uses the margin mode / prices cached by the last upload: no new Aster calls.
+export const alertsViewFrom = (raw) => {
+  if (!raw || !raw.account || !Array.isArray(raw.positionRisk)) return { cross: null, isolated: [] };
+  const multiAssets = modeCache ? modeCache.value : null;
+  const snap = buildSnapshot({
+    account: raw.account,
+    positionRisk: raw.positionRisk,
+    multiAssets,
+    prices: priceCache ? priceCache.map : null,
+  });
+  return marginRatios(snap.account);
 };

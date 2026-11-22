@@ -21,6 +21,7 @@ const EMPTY = {
   loading: false,
   updatedAt: 0,
   invalidAt: 0, // set when Aster says the agent is no longer valid
+  alertsRaw: null, // last { account, positionRisk } (alerts sheet: margin ratios, no extra calls)
 };
 let store = { ...EMPTY };
 const listeners = new Set();
@@ -83,8 +84,10 @@ const refreshStore = () => {
       patch.positions = pos.data.filter((p) => isValid(p.positionAmt) && !toUnits(p.positionAmt).isZero());
     }
     if (!ord.error && Array.isArray(ord.data)) patch.openOrders = ord.data;
+    const fresh = !acc.error && acc.data && !pos.error && Array.isArray(pos.data);
+    if (fresh) patch.alertsRaw = { account: acc.data, positionRisk: pos.data };
     setStore(patch);
-    if (!acc.error && acc.data && !pos.error && Array.isArray(pos.data)) {
+    if (fresh) {
       syncPerpsAlerts({
         reason: alertsForce ? "refresh" : "poll",
         force: alertsForce,
@@ -197,6 +200,7 @@ export const usePerpsAccount = ({ agent, user, active, onAgentInvalid }) => {
     noDeposit: mine ? snap.noDeposit : false,
     error: mine ? snap.error : null,
     loading: mine ? snap.loading : false,
+    alertsRaw: mine ? snap.alertsRaw : null,
     marks,
     refresh,
   };

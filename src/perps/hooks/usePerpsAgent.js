@@ -16,6 +16,20 @@ export const useMainEvmAddress = () => {
     : null;
 };
 
+// Redux has no wallet at all yet (cold start, e.g. opened from a notification): still loading, not
+// "no EVM wallet". After WALLET_LOAD_GRACE_MS without a wallet the normal no-evm card shows.
+const WALLET_LOAD_GRACE_MS = 8000;
+const useWalletLoading = () => {
+  const hasWallet = useSelector((state) => !!(state && state.wallet));
+  const [graceOver, setGraceOver] = useState(false);
+  useEffect(() => {
+    if (hasWallet) return undefined;
+    const t = setTimeout(() => setGraceOver(true), WALLET_LOAD_GRACE_MS);
+    return () => clearTimeout(t);
+  }, [hasWallet]);
+  return !hasWallet && !graceOver;
+};
+
 // ONE in-memory agent state for the app session, shared by every screen (Perps tab, market
 // screen), so a screen opened later has the trading key immediately and a reset/enable in one
 // place updates all of them. Loaded from secure storage once per wallet.
@@ -58,6 +72,7 @@ export const getUsableAgent = async (user) => {
 // status: checking | no-evm | locked (native secure storage missing, e.g. old build + OTA JS) | not-enabled | enabling | enabled
 export const usePerpsAgent = (active) => {
   const user = useMainEvmAddress();
+  const walletLoading = useWalletLoading();
   const initial = shared.user === user && user ? shared : null;
   const [status, setStatus] = useState(initial ? initial.status : "checking");
   const [agent, setAgent] = useState(initial ? initial.agent : null);
@@ -107,7 +122,7 @@ export const usePerpsAgent = (active) => {
     setError(null);
     if (!user) {
       setAgent(null);
-      setStatus("no-evm");
+      setStatus(walletLoading ? "checking" : "no-evm");
       return undefined;
     }
     if (!isAgentStoreAvailable()) {
@@ -140,7 +155,7 @@ export const usePerpsAgent = (active) => {
     return () => {
       cancelled = true;
     };
-  }, [user, dropAgent]);
+  }, [user, dropAgent, walletLoading]);
 
   // Max leverage per market: fetched once per app session (signed), shared via asterSigned.
   // Account balances / positions come from the shared account store (usePerpsAccount).

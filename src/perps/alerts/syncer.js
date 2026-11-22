@@ -18,6 +18,8 @@ export const MAX_BACKOFF_MS = 10 * 60 * 1000;
 //   loadPrices(assets)            -> { ASSET: { price, discount } } | null
 //   post(body) / del(body)        -> { status }   (throws on network errors)
 //   saveWallet(wallet|null), loadWallet()  -> last wallet uploaded from this device
+//   getPrefs(user)                -> { enabled, muted } (master switch + muted keys, per wallet)
+//   saveMuted(user, keys)         -> keep only the muted keys of still-open positions
 //   log({ step, status, msg })
 //   schedule(fn, ms)              -> retry a forced upload later (after a 429 / while busy)
 export const createAlertsSyncer = (deps) => {
@@ -50,6 +52,8 @@ export const createAlertsSyncer = (deps) => {
 
   const run = async ({ reason, force, user, agent, raw }) => {
     if (!deps.enabled() || !user) return { sent: false, skipped: "disabled" };
+    const prefs = (await deps.getPrefs(user)) || { enabled: true, muted: [] };
+    if (!prefs.enabled) return { sent: false, skipped: "off" }; // master switch off for this wallet
     const t0 = deps.now();
     if (t0 < backoffUntil) {
       if (force) {
@@ -69,7 +73,15 @@ export const createAlertsSyncer = (deps) => {
     const multiAssets = await deps.loadMode(a, user);
     const needPrice = multiAssets === true ? assetsNeedingPrice(data.account) : [];
     const prices = needPrice.length ? await deps.loadPrices(needPrice) : null;
-    const snap = buildSnapshot({ account: data.account, positionRisk: data.positionRisk, multiAssets, prices });
+    const snap = buildSnapshot({
+      account: data.account,
+      positionRisk: data.positionRisk,
+      multiAssets,
+      prices,
+      muted: prefs.muted,
+    });
+    // A closed position's mute is forgotten (it starts unmuted when opened again).
+    if (snap.info.keepMuted.length !== (prefs.muted || []).length) await deps.saveMuted(user, snap.info.keepMuted);
     const sig = snapshotSignature(user, snap.account);
     const t1 = deps.now();
     if (!force && sig === lastSig && t1 - lastSentAt < RESEND_MS) return { sent: false, skipped: "unchanged" };
@@ -136,6 +148,8 @@ export const createAlertsSyncer = (deps) => {
   // Stop alerts for this device. Never throws.
   const remove = async (reason = "remove") => {
     try {
+      // Let a running upload finish first, so it can't re-create the row after the DELETE.
+      if (inflight) await inflight;
       const token = await deps.getToken();
       if (!token) return { removed: false, skipped: "no-token" };
       const res = await deps.del({ fcmToken: token });

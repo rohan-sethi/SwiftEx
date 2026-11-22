@@ -26,6 +26,8 @@ const setup = (over = {}) => {
     loadWallet: jest.fn(async () => USER),
     log: jest.fn(),
     schedule: jest.fn((fn, ms) => scheduled.push({ fn, ms })),
+    getPrefs: jest.fn(async () => ({ enabled: true, muted: [] })),
+    saveMuted: jest.fn(async () => {}),
     ...over,
   };
   const s = createAlertsSyncer(deps);
@@ -120,6 +122,7 @@ describe("alerts syncer", () => {
     const { s, deps } = setup({ loadRaw: jest.fn(() => new Promise((r) => (release = () => r(rawWith("0.001"))))) });
     const first = s.sync({ user: USER });
     expect(await s.sync({ user: USER, force: true })).toMatchObject({ skipped: "busy" });
+    for (let i = 0; i < 5 && !release; i++) await new Promise((r) => setTimeout(r, 0));
     deps.loadRaw.mockImplementation(async () => rawWith("0"));
     release();
     await first;

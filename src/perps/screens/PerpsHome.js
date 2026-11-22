@@ -23,6 +23,7 @@ import { useAsterMarkets } from "../hooks/useAsterMarkets";
 import { formatPrice, formatPercent, formatCompactUsd } from "../utils/format";
 import { usePerpsAgent } from "../hooks/usePerpsAgent";
 import TradingCard from "../components/TradingCard";
+import AlertsSheet from "../components/AlertsSheet";
 import CoinLogo from "../components/CoinLogo";
 import { useAssetLogos } from "../hooks/useAssetLogos";
 import { useAppActive } from "../hooks/useAppActive";
@@ -92,6 +93,7 @@ const PerpsHome = () => {
   const [query, setQuery] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [alertsOpen, setAlertsOpen] = useState(false);
   const deposit = useDepositTracker();
   // The full-screen History covers this list: pause its market stream + account poller meanwhile
   // (the poller keeps running if a deposit is waiting for its credit).
@@ -346,14 +348,27 @@ const PerpsHome = () => {
           Perps
         </Text>
         {agentState.status === "enabled" ? (
-          <TouchableOpacity
-            accessibilityRole="button"
-            accessibilityLabel="More options"
-            onPress={() => setMenuOpen(!menuOpen)}
-            style={styles.menuBtn}
-          >
-            <Icon name="ellipsis-horizontal" type="ionicon" size={24} color={theme.headingTx} />
-          </TouchableOpacity>
+          <View style={styles.headBtns}>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="Liquidation alerts"
+              onPress={() => {
+                setMenuOpen(false);
+                setAlertsOpen(true);
+              }}
+              style={styles.menuBtn}
+            >
+              <Icon name="notifications-outline" type="ionicon" size={23} color={theme.headingTx} />
+            </TouchableOpacity>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel="More options"
+              onPress={() => setMenuOpen(!menuOpen)}
+              style={styles.menuBtn}
+            >
+              <Icon name="ellipsis-horizontal" type="ionicon" size={24} color={theme.headingTx} />
+            </TouchableOpacity>
+          </View>
         ) : null}
       </View>
       {menuOpen && agentState.status === "enabled" ? (
@@ -557,6 +572,13 @@ const PerpsHome = () => {
               user={agentState.user}
             />
           ) : null}
+          <AlertsSheet
+            visible={alertsOpen}
+            onClose={() => setAlertsOpen(false)}
+            theme={theme}
+            user={agentState.user}
+            raw={accountState.alertsRaw}
+          />
           <WithdrawSheet
             visible={sheet === "withdraw"}
             onClose={() => setSheet(null)}
@@ -589,6 +611,7 @@ const styles = StyleSheet.create({
     justifyContent: "space-between",
     paddingRight: 12,
   },
+  headBtns: { flexDirection: "row", alignItems: "center" },
   menuBtn: {
     padding: 6,
   },

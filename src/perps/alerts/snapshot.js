@@ -20,6 +20,17 @@ const str = (v) => toPlain(String(v));
 const absOf = (v) => (gt(v, "0") ? str(v) : sub("0", v));
 const sideKey = (p) => `${p.symbol}|${p.positionSide || "BOTH"}`;
 
+export const CROSS_KEY = "cross";
+// Alert switch key of one position: 'cross' for every cross position, 'iso:SYMBOL:LONG|SHORT'
+// for an isolated one (side from positionSide in hedge mode, else from the sign of positionAmt).
+export const muteKeyOf = (row, positionSide) => {
+  if (row.marginType !== "isolated") return CROSS_KEY;
+  const ps = String(positionSide || "BOTH").toUpperCase();
+  const side = ps === "LONG" || ps === "SHORT" ? ps : gt(row.positionAmt, "0") ? "LONG" : "SHORT";
+  return `iso:${row.symbol}:${side}`;
+};
+export const MAX_MUTED = 11;
+
 // Aster/Binance write "cross"/"isolated" (positionRisk) or "CROSSED"/"ISOLATED" (requests).
 const marginTypeOf = (p, accPos) => {
   const t = String((p && p.marginType) || "").toLowerCase();
@@ -89,24 +100,78 @@ const mapPositions = (account, positionRisk) => {
         const w = isValid(p.isolatedWallet) ? p.isolatedWallet : acc && isValid(acc.isolatedWallet) ? acc.isolatedWallet : "0";
         row.isolatedWallet = str(w);
       }
-      return { row, notional: mul(absOf(p.positionAmt), row.markPrice) };
+      return { row, key: muteKeyOf(row, p.positionSide), notional: mul(absOf(p.positionAmt), row.markPrice) };
     })
     .sort((a, b) => (gt(a.notional, b.notional) ? -1 : gt(b.notional, a.notional) ? 1 : 0));
+  const kept = rows.slice(0, MAX_POSITIONS);
   return {
-    positions: rows.slice(0, MAX_POSITIONS).map((r) => r.row),
+    positions: kept.map((r) => r.row),
+    sentKeys: kept.map((r) => r.key),
+    openKeys: rows.map((r) => r.key),
     dropped: Math.max(0, rows.length - MAX_POSITIONS),
     missingMaint,
   };
 };
 
-// -> { account: { assets, positions }, info: { skippedAssets, droppedPositions, missingMaint } }
-export const buildSnapshot = ({ account, positionRisk, multiAssets = null, prices = null } = {}) => {
+// muted: the wallet's saved switch keys. Only keys of currently open positions are kept:
+//   account.muted  = saved ∩ positions sent (max 11), always present (may be empty)
+//   info.keepMuted = saved ∩ all open positions -> what should stay saved (a closed position's
+//                    key is dropped, so it starts unmuted when opened again)
+// -> { account: { assets, positions, muted }, info: { skippedAssets, droppedPositions, missingMaint, keepMuted, openKeys } }
+export const buildSnapshot = ({ account, positionRisk, multiAssets = null, prices = null, muted = [] } = {}) => {
   const a = mapAssets(account, multiAssets, prices);
   const p = mapPositions(account, positionRisk);
+  const saved = [...new Set(Array.isArray(muted) ? muted.filter((k) => typeof k === "string") : [])];
+  const open = new Set(p.openKeys);
+  const sent = new Set(p.sentKeys);
   return {
-    account: { assets: a.assets, positions: p.positions },
-    info: { skippedAssets: a.skipped, droppedPositions: p.dropped, missingMaint: p.missingMaint },
+    account: {
+      assets: a.assets,
+      positions: p.positions,
+      muted: saved.filter((k) => sent.has(k)).slice(0, MAX_MUTED),
+    },
+    info: {
+      skippedAssets: a.skipped,
+      droppedPositions: p.dropped,
+      missingMaint: p.missingMaint,
+      keepMuted: saved.filter((k) => open.has(k)),
+      openKeys: [...open],
+    },
   };
+};
+
+// Margin ratios for the alerts sheet (display only, numbers), from a built snapshot account:
+//   cross:    Σ maintMargin(cross) / (Σ balance × price × discount + Σ unrealized PnL(cross))
+//   isolated: maintMargin / (isolatedWallet + unrealized PnL)
+// 100% = liquidation. An equity of 0 or less counts as 100%+.
+// -> { cross: { key, symbols, ratio } | null, isolated: [{ key, symbol, side, ratio }] }
+const n = (v) => (Number.isFinite(Number(v)) ? Number(v) : 0);
+const upnl = (p) => n(p.positionAmt) * (n(p.markPrice) - n(p.entryPrice));
+const ratioOf = (maint, equity) => (equity > 0 ? maint / equity : maint > 0 ? Infinity : 0);
+export const marginRatios = (acct) => {
+  const positions = (acct && acct.positions) || [];
+  const cross = positions.filter((p) => p.marginType !== "isolated");
+  const collateral = ((acct && acct.assets) || []).reduce(
+    (s, x) => s + n(x.crossWalletBalance) * n(x.price) * (n(x.crossWalletBalance) > 0 ? n(x.discount) : 1),
+    0
+  );
+  const crossRow = cross.length
+    ? {
+        key: CROSS_KEY,
+        symbols: cross.map((p) => p.symbol),
+        ratio: ratioOf(
+          cross.reduce((s, p) => s + n(p.maintMargin), 0),
+          collateral + cross.reduce((s, p) => s + upnl(p), 0)
+        ),
+      }
+    : null;
+  const isolated = positions
+    .filter((p) => p.marginType === "isolated")
+    .map((p) => {
+      const key = muteKeyOf(p);
+      return { key, symbol: p.symbol, side: key.endsWith(":LONG") ? "LONG" : "SHORT", ratio: ratioOf(n(p.maintMargin), n(p.isolatedWallet) + upnl(p)) };
+    });
+  return { cross: crossRow, isolated };
 };
 
 // What decides "nothing changed since the last upload" (prices / maint margin move all the time and
@@ -116,6 +181,7 @@ export const snapshotSignature = (wallet, account) =>
     String(wallet || "").toLowerCase(),
     account.assets.map((x) => [x.asset, x.crossWalletBalance]),
     account.positions.map((x) => [x.symbol, x.positionAmt, x.entryPrice, x.marginType, x.isolatedWallet || ""]),
+    account.muted || [],
   ]);
 
 // Non-stable assets with a balance (they need a USD price from assetIndex).

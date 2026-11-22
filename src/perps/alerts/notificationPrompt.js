@@ -11,7 +11,7 @@ import { logPerpsError } from "../utils/perpsLog";
 const SNOOZE_KEY = "perpsAlerts:promptSnoozeUntil";
 export const SNOOZE_MS = 30 * 24 * 60 * 60 * 1000;
 
-const notificationsOn = async () => {
+export const notificationsOn = async () => {
   const s = await notifee.getNotificationSettings();
   return (
     s.authorizationStatus === AuthorizationStatus.AUTHORIZED ||

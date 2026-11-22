@@ -102,8 +102,8 @@ describe("buildSnapshot", () => {
     const { account, info } = buildSnapshot({ account: { positions: [] }, positionRisk: [risk("XUSDT", "1", "5")] });
     expect(account.positions[0].maintMargin).toBe("0");
     expect(info.missingMaint).toEqual(["XUSDT"]);
-    expect(buildSnapshot({}).account).toEqual({ assets: [], positions: [] });
-    expect(buildSnapshot({ account: null, positionRisk: null }).account).toEqual({ assets: [], positions: [] });
+    expect(buildSnapshot({}).account).toEqual({ assets: [], positions: [], muted: [] });
+    expect(buildSnapshot({ account: null, positionRisk: null }).account).toEqual({ assets: [], positions: [], muted: [] });
   });
 
   test("signature ignores mark price / maint margin, changes when a position closes", () => {
