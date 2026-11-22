@@ -16,11 +16,16 @@ export const useMainEvmAddress = () => {
     : null;
 };
 
-// Redux has no wallet at all yet (cold start, e.g. opened from a notification): still loading, not
-// "no EVM wallet". After WALLET_LOAD_GRACE_MS without a wallet the normal no-evm card shows.
-const WALLET_LOAD_GRACE_MS = 8000;
+// Cold start (e.g. opened from a notification): until the PIN unlock, Redux `wallet` is null or
+// still a pending Promise (seen live: keys _A/_x/_y/_z for ~the whole PIN screen), so the
+// address is missing although the wallet has one. Show "loading" then, not "no EVM wallet".
+// A real wallet object (even Stellar-only) has a name / address. After WALLET_LOAD_GRACE_MS
+// without one the normal no-evm card shows.
+const WALLET_LOAD_GRACE_MS = 20000;
+export const isWalletLoaded = (w) =>
+  !!w && typeof w === "object" && typeof w.then !== "function" && ("address" in w || "name" in w);
 const useWalletLoading = () => {
-  const hasWallet = useSelector((state) => !!(state && state.wallet));
+  const hasWallet = useSelector((state) => isWalletLoaded(state && state.wallet));
   const [graceOver, setGraceOver] = useState(false);
   useEffect(() => {
     if (hasWallet) return undefined;
