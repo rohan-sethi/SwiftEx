@@ -4,7 +4,7 @@ import Clipboard from "@react-native-clipboard/clipboard";
 import Icon from "../../icon";
 import { Step, hhmm, shortHash } from "./WithdrawStatusCard";
 import { useAppActive } from "../hooks/useAppActive";
-import { chainById, txUrl, displayName } from "../api/asterAssets";
+import { chainById, txUrl, displayName, DEFAULT_CHAIN_ID } from "../api/asterAssets";
 
 // Deposit progress, same look as the withdraw card:
 // Approve USDT (only if needed) -> Deposit sent -> Confirmed on BSC -> Credited in Perps.
@@ -59,7 +59,7 @@ const UNKNOWN_TEXT = "Status unknown — don't deposit again yet. Check your wal
 
 const DepositStatusCard = ({ theme, record }) => {
   const appActive = useAppActive();
-  const chain = chainById(record.chainId || 56);
+  const chain = chainById(record.chainId || DEFAULT_CHAIN_ID);
   const tok = displayName(record.asset || "USDT");
   const credited = !!record.creditedAt;
   const failed = record.failed;

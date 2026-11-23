@@ -2,7 +2,7 @@ import React from "react";
 import { View, Text, TouchableOpacity, StyleSheet, ActivityIndicator, Linking } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
 import Icon from "../../icon";
-import { chainById, txUrl, displayName } from "../api/asterAssets";
+import { chainById, txUrl, displayName, DEFAULT_CHAIN_ID } from "../api/asterAssets";
 
 // Withdraw progress: Requested -> Processing -> Sent on BSC -> Received in wallet.
 // Neutral colors; green only when the funds are in the wallet, red only if Aster reports a failure.
@@ -63,7 +63,7 @@ export const Step = ({ theme, label, sub, state, time, last, extra }) => {
 const WithdrawStatusCard = ({ theme, tracking }) => {
   const { amount, fee, receive, txHash, failed } = tracking;
   const tok = displayName(tracking.asset || "USDT");
-  const chain = chainById(tracking.chainId || 56);
+  const chain = chainById(tracking.chainId || DEFAULT_CHAIN_ID);
   const received = !!tracking.receivedAt;
   const sent = !!tracking.sentAt || received;
 

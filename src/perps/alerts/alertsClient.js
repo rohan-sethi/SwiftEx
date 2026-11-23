@@ -8,7 +8,7 @@ import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import messaging from "@react-native-firebase/messaging";
 import notifee, { AndroidImportance } from "@notifee/react-native";
-import { PERPS_ALERTS_URL, PERPS_ENABLED } from "../config";
+import { PERPS_ALERTS_URL, PERPS_ALERTS_ENABLED } from "../config";
 import { fetchAccount, fetchPositions, fetchMultiAssetsMode } from "../api/asterTrade";
 import { asterFetch } from "../api/asterPublic";
 import { getUsableAgent } from "../hooks/usePerpsAgent";
@@ -107,7 +107,7 @@ const getToken = async () => {
 };
 
 const syncer = createAlertsSyncer({
-  enabled: () => PERPS_ENABLED,
+  enabled: () => PERPS_ALERTS_ENABLED,
   now: () => Date.now(),
   platform: Platform.OS === "ios" ? "ios" : Platform.OS === "web" ? "web" : "android",
   getToken,
@@ -151,7 +151,7 @@ export const ensurePerpsAlertsChannel = () => {
 // them (the Perps account poller); otherwise they are fetched with the stored trading key.
 export const syncPerpsAlerts = async ({ reason = "sync", force = false, user, agent, raw } = {}) => {
   try {
-    if (!PERPS_ENABLED || !user) return { sent: false, skipped: "disabled" };
+    if (!PERPS_ALERTS_ENABLED || !user) return { sent: false, skipped: "disabled" };
     const r = await syncer.sync({ reason, force, user, agent, raw });
     if (r.sent) {
       ensurePerpsAlertsChannel();
@@ -166,6 +166,7 @@ export const syncPerpsAlerts = async ({ reason = "sync", force = false, user, ag
 };
 
 export const removePerpsAlertsDevice = async (reason) => {
+  if (!PERPS_ALERTS_ENABLED) return { removed: false }; // testnet: no DELETE calls
   try {
     const r = await syncer.remove(reason);
     devLog(`device removed (${reason}): ${r.removed}`);
@@ -177,7 +178,7 @@ export const removePerpsAlertsDevice = async (reason) => {
 
 export const onWalletRemovedForAlerts = async (address) => {
   try {
-    if (!PERPS_ENABLED) return { removed: false };
+    if (!PERPS_ALERTS_ENABLED) return { removed: false };
     return await syncer.onWalletRemoved(address);
   } catch (e) {
     return { removed: false };

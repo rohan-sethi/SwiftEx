@@ -16,6 +16,7 @@ import {
   collateralRatio,
   displayName,
   SINGLE_ASSET_MARGIN,
+  DEFAULT_CHAIN_ID,
 } from "../api/asterAssets";
 import { isAsterWithdrawSigningAvailable } from "../api/asterWithdrawSigner";
 import WithdrawStatusCard from "./WithdrawStatusCard";
@@ -37,6 +38,7 @@ import { useWithdrawTracker, startWithdraw, clearWithdraw, isWithdrawFinished } 
 import { gt, isPositive, sub, min as dMin, lte, toPlain, floorToStep, cleanAmountInput, decimalsOf } from "../utils/decimal";
 import { formatNumber, formatAmount } from "../utils/format";
 import { friendlyAsterError } from "../utils/asterErrors";
+import { PERPS_NETWORK } from "../network";
 
 
 const short = (a) => (a ? `${a.slice(0, 6)}…${a.slice(-4)}` : "");
@@ -132,7 +134,7 @@ const ESTIMATE_DEBOUNCE_MS = 600;
 export const DepositSheet = ({ visible, onClose, theme, user, perpsBalance, multiAssets, onEnableMultiAssets }) => {
   const { record } = useDepositTracker();
   const [lists, setLists] = useState(null);
-  const [chainId, setChainId] = useState(56);
+  const [chainId, setChainId] = useState(DEFAULT_CHAIN_ID);
   const [assetName, setAssetName] = useState("USDT");
   const [balances, setBalances] = useState(null); // { native, assets: { NAME: { value } } }
   const [amount, setAmount] = useState("");
@@ -444,6 +446,10 @@ export const DepositSheet = ({ visible, onClose, theme, user, perpsBalance, mult
         </>
       ) : null}
 
+      {!PERPS_NETWORK.depositSendEnabled ? (
+        <Text style={[styles.note, { color: theme.warn }]}>Testnet deposits can't be sent from this app version yet.</Text>
+      ) : null}
+
       {reviewing ? (
         <>
           {startErr ? <Text style={[styles.err, { color: theme.fail }]}>{startErr}</Text> : null}
@@ -463,7 +469,7 @@ export const DepositSheet = ({ visible, onClose, theme, user, perpsBalance, mult
           theme={theme}
           label="Review"
           onPress={() => setReviewing(true)}
-          disabled={!asset || !amount || !!inline || !balances || noGas || estimating || !estimate || !estimate.ok}
+          disabled={!PERPS_NETWORK.depositSendEnabled || !asset || !amount || !!inline || !balances || noGas || estimating || !estimate || !estimate.ok}
         />
       )}
     </Sheet>
@@ -479,13 +485,13 @@ const WITHDRAW_STEP_TEXT = {
 // Signed entirely by the main wallet (Aster-only native method, one PIN/biometric prompt).
 // The request runs in storage/withdrawTracker (survives closing the sheet / relaunch).
 export const WithdrawSheet = ({ visible, onClose, theme, agent, user, available }) => {
-  const signingSupported = isAsterWithdrawSigningAvailable();
+  const signingSupported = PERPS_NETWORK.withdrawEnabled && isAsterWithdrawSigningAvailable();
   const { record } = useWithdrawTracker();
   const [options, setOptions] = useState(null); // [{ asset, total, chains: [{ chainId, max, fee }] }]
   const [lists, setLists] = useState(null);
   const [infoNote, setInfoNote] = useState(null);
   const [assetName, setAssetName] = useState("USDT");
-  const [chainId, setChainId] = useState(56);
+  const [chainId, setChainId] = useState(DEFAULT_CHAIN_ID);
   const [amount, setAmount] = useState("");
   const [reviewing, setReviewing] = useState(false);
   const [sending, setSending] = useState(false);
@@ -536,8 +542,8 @@ export const WithdrawSheet = ({ visible, onClose, theme, agent, user, available 
   const chainOpts = opt
     ? opt.chains.filter((c) => !supported || supported.includes(c.chainId)).sort((a, b) => chainOrder(a.chainId) - chainOrder(b.chainId))
     : [];
-  const ch = chainOpts.find((c) => c.chainId === chainId) || chainOpts.find((c) => c.chainId === 56) || chainOpts[0] || null;
-  const chain = ch ? chainById(ch.chainId) : chainById(56);
+  const ch = chainOpts.find((c) => c.chainId === chainId) || chainOpts.find((c) => c.chainId === DEFAULT_CHAIN_ID) || chainOpts[0] || null;
+  const chain = ch ? chainById(ch.chainId) : chainById(DEFAULT_CHAIN_ID);
   const fee = ch ? ch.fee : null;
   // USDT: also capped by the account's available balance (margin in use can't leave).
   const maxAllowed = ch ? (opt.asset === "USDT" && available !== null && available !== undefined ? dMin(ch.max, available) : ch.max) : null;
@@ -688,7 +694,7 @@ export const WithdrawSheet = ({ visible, onClose, theme, agent, user, available 
         <Text style={[styles.note, { color: theme.fail }]}>{record.failed.text}</Text>
       ) : null}
       {!signingSupported ? (
-        <Text style={[styles.note, { color: theme.warn }]}>Withdrawals need the latest app version.</Text>
+        <Text style={[styles.note, { color: theme.warn }]}>{PERPS_NETWORK.withdrawEnabled ? "Withdrawals need the latest app version." : "Testnet withdrawals aren't available in this app version yet."}</Text>
       ) : null}
 
       {reviewing ? (

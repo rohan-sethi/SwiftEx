@@ -5,11 +5,12 @@
 // AsyncStorage holds no secrets: asset, chain, amounts, times, tx hash.
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { perpsStoreKey } from "../network";
 import { withdrawWithMainWallet, fetchWithdrawHistory, withChainProvider } from "../api/asterFunds";
 import { chainById } from "../api/asterAssets";
 import { sub } from "../utils/decimal";
 
-const STORAGE_KEY = "perps_withdraw_pending";
+const STORAGE_KEY = perpsStoreKey("perps_withdraw_pending");
 const POLL_MS = 10000;
 const POLL_MAX_MS = 60000;
 const LOST_REQUEST_MS = 3 * 60 * 1000; // no history row this long after an interrupted send = not sent

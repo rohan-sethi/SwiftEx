@@ -11,6 +11,7 @@
 // fetched whole (it is small) when needed.
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { perpsStoreKey } from "../network";
 import { fetchIncomePage, fetchTransferHistory } from "../api/asterHistory";
 import { getServerNowMs } from "../api/asterSigned";
 import {
@@ -24,7 +25,7 @@ import {
 } from "../utils/historyPaging";
 
 const CACHE_VERSION = 2;
-const keyFor = (user) => `perps_history_v${CACHE_VERSION}_${String(user).toLowerCase()}`;
+const keyFor = (user) => perpsStoreKey(`perps_history_v${CACHE_VERSION}_${String(user).toLowerCase()}`);
 const PENDING_STATES = ["PROCESSING", "PENDING", "INIT", "SUBMITTED"];
 const COVER_MAX_REQUESTS = 20; // per period switch; beyond that the summary says "partial"
 

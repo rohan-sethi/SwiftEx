@@ -1,9 +1,14 @@
 // Feature switch for Perps. When PERPS_ENABLED is false the app must look and behave exactly as before.
 
-import { ENVIRONMENT } from "../Dashboard/constants";
+import { PERPS_NETWORK } from "./network";
 
-// Dev builds only until the pending native work is done (secure agent-key storage, withdraw signing).
-export const PERPS_ENABLED = ENVIRONMENT!=="TESTNET";
+// On for mainnet (as before) and, since the testnet work, for TESTNET builds too (Aster testnet,
+// see src/perps/network.js).
+export const PERPS_ENABLED = true; // was ENVIRONMENT !== "TESTNET" (mainnet: true before and after)
+
+// Liquidation alerts: mainnet only (the alerts server watches Aster mainnet). Testnet: no uploads,
+// no DELETE calls, no bell / alerts sheet, no notification prompt.
+export const PERPS_ALERTS_ENABLED = PERPS_ENABLED && PERPS_NETWORK.alertsEnabled;
 
 // Liquidation alerts server (public URL, not a secret). See src/perps/alerts/alertsClient.js.
 export const PERPS_ALERTS_URL = "https://alerts.swiftexchange.io";

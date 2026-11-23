@@ -17,7 +17,7 @@ import Clipboard from "@react-native-clipboard/clipboard";
 import Icon from "../../icon";
 import CoinLogo from "./CoinLogo";
 import { shortHash, hhmm } from "./WithdrawStatusCard";
-import { chainById, txUrl, displayName } from "../api/asterAssets";
+import { chainById, txUrl, displayName, DEFAULT_CHAIN_ID } from "../api/asterAssets";
 import { usePerpsHistory } from "../hooks/usePerpsHistory";
 import { useModalPresence } from "../utils/modalSafe";
 import { fetchTradesAround } from "../api/asterHistory";
@@ -137,11 +137,11 @@ const TxLine = ({ theme, hash, chainId }) =>
       </TouchableOpacity>
       <TouchableOpacity
         accessibilityRole="link"
-        onPress={() => Linking.openURL(txUrl(chainId || 56, hash))}
+        onPress={() => Linking.openURL(txUrl(chainId || DEFAULT_CHAIN_ID, hash))}
         style={styles.txBtn}
         hitSlop={{ top: 8, bottom: 8, left: 4, right: 8 }}
       >
-        <Text style={[styles.link, { color: theme.buttonColor }]}>View on {chainById(chainId || 56).explorerName}</Text>
+        <Text style={[styles.link, { color: theme.buttonColor }]}>View on {chainById(chainId || DEFAULT_CHAIN_ID).explorerName}</Text>
       </TouchableOpacity>
     </View>
   ) : null;
@@ -293,7 +293,7 @@ const TransferRow = ({ theme, t }) => {
           <View style={styles.stateLine}>
             {!done && !failed ? <ActivityIndicator size="small" color={theme.buttonColor} style={styles.stateSpin} /> : null}
             <Text style={[styles.rowSub, { color: failed ? theme.fail : theme.inactiveTx }]}>
-              {STATE_TEXT[st] || st} · {hhmm(t.time)} · {chainById(t.chainId || 56).name}
+              {STATE_TEXT[st] || st} · {hhmm(t.time)} · {chainById(t.chainId || DEFAULT_CHAIN_ID).name}
             </Text>
           </View>
         </View>
@@ -395,7 +395,7 @@ const PerpsHistory = ({ visible, onClose, theme, isDark, agent, user }) => {
     if (isDepositActive(deposit) && deposit.user.toLowerCase() === String(user).toLowerCase()) {
       const known = deposit.depositHash && list.some((t) => t.txHash && t.txHash.toLowerCase() === deposit.depositHash.toLowerCase());
       if (!known) {
-        list.push({ key: "local-deposit", type: "DEPOSIT", amount: deposit.amount, asset: deposit.asset || "USDT", chainId: deposit.chainId || 56, state: "local", time: deposit.startedAt, txHash: deposit.depositHash });
+        list.push({ key: "local-deposit", type: "DEPOSIT", amount: deposit.amount, asset: deposit.asset || "USDT", chainId: deposit.chainId || DEFAULT_CHAIN_ID, state: "local", time: deposit.startedAt, txHash: deposit.depositHash });
       }
     }
     return list.sort((a, b) => b.time - a.time);

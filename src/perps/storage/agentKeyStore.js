@@ -20,8 +20,10 @@
  */
 import { NativeModules, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { PERPS_NETWORK } from "../network";
 
-const KEY_PREFIX = "perps_aster_agent_";
+// Testnet keys: perps_aster_agent_testnet_<address> (native only accepts the perps_aster_agent_ prefix).
+const KEY_PREFIX = PERPS_NETWORK.isTestnet ? "perps_aster_agent_testnet_" : "perps_aster_agent_";
 const NATIVE_METHODS = ["setSecureItem", "getSecureItem", "removeSecureItem"];
 
 const nativeStore = () => {

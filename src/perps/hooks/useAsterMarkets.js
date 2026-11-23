@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { perpsStoreKey } from "../network";
 import { fetchPerpMarkets, fetchTickers24h, primeMarketMeta, cacheTicker } from "../api/asterPublic";
 import { asterWs } from "../api/asterWs";
 
@@ -8,7 +9,7 @@ const FLUSH_MS = 1000; // batch live ticker updates into one render per second
 // Last good market list (exchangeInfo rules + last tickers), shown instantly on the next open
 // while a fresh copy loads. Orders never rely on it alone: OrderPanel refreshes the rules
 // first when they are older than 1h (ensureFreshMarketMeta).
-const CACHE_KEY = "perps_markets_cache";
+const CACHE_KEY = perpsStoreKey("perps_markets_cache");
 const CACHE_VERSION = 1;
 const CACHE_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // don't show a list older than a week
 

@@ -14,12 +14,13 @@
 // wallet has an unconfirmed transaction on that chain (pending nonce > latest nonce).
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { perpsStoreKey } from "../network";
 import { executeChainDeposit, getPendingNonce, getLatestNonce, prepareChainDeposit } from "../api/asterFunds";
 import { fetchTransferHistory } from "../api/asterHistory";
-import { chainById } from "../api/asterAssets";
+import { chainById, DEFAULT_CHAIN_ID } from "../api/asterAssets";
 import { gt, isValid, mul, sub } from "../utils/decimal";
 
-const STORAGE_KEY = "perps_deposit_pending";
+const STORAGE_KEY = perpsStoreKey("perps_deposit_pending");
 const NONCE_WATCH_MS = 2000;
 const SEND_GRACE_MS = 3 * 60 * 1000; // nonce unchanged this long after the deposit step = nothing went out
 const UNKNOWN_AFTER_MS = 15 * 60 * 1000; // sent / maybe sent but not mined after this: "status unknown"
@@ -64,7 +65,7 @@ const patch = (p) => {
   if (!record) return;
   set({ ...record, ...p });
 };
-const chainOf = (r) => chainById(r && r.chainId ? r.chainId : 56);
+const chainOf = (r) => chainById(r && r.chainId ? r.chainId : DEFAULT_CHAIN_ID);
 
 export const isDepositFinished = (r) => !!r && (!!r.creditedAt || !!r.failed);
 export const isDepositActive = (r) => !!r && !isDepositFinished(r);
@@ -281,7 +282,7 @@ const run = async (plan) => {
 export const startDeposit = async ({ user, plan, baseline }) => {
   if (running) return { ok: false, error: PENDING_TX_TEXT };
   running = true; // held while checking (run() keeps it), so a double tap can't start two
-  const block = await blockReason(user, chainById(plan.chainId || 56)).catch(() => CHECK_FAILED_TEXT);
+  const block = await blockReason(user, chainById(plan.chainId || DEFAULT_CHAIN_ID)).catch(() => CHECK_FAILED_TEXT);
   if (block) {
     running = false;
     return { ok: false, error: block };
@@ -289,7 +290,7 @@ export const startDeposit = async ({ user, plan, baseline }) => {
   const now = Date.now();
   set({
     user,
-    chainId: plan.chainId || 56,
+    chainId: plan.chainId || DEFAULT_CHAIN_ID,
     chainKey: plan.chainKey || "BNB",
     asset: plan.asset || "USDT",
     decimals: plan.decimals || 18,

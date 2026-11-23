@@ -1,8 +1,9 @@
 // Aster public (no-auth) REST helpers. Read-only market data. Every helper resolves to
 // { data, error } and never throws.
 import { logPerpsError } from "../utils/perpsLog";
+import { PERPS_NETWORK } from "../network";
 
-export const ASTER_REST_BASE = "https://fapi.asterdex.com";
+export const ASTER_REST_BASE = PERPS_NETWORK.restBase; // mainnet: https://fapi.asterdex.com
 
 const DEFAULT_TIMEOUT_MS = 15000;
 

@@ -6,7 +6,7 @@
 import { useEffect, useRef } from "react";
 import { AppState } from "react-native";
 import notifee, { EventType } from "@notifee/react-native";
-import { PERPS_ENABLED } from "../config";
+import { PERPS_ALERTS_ENABLED } from "../config";
 import { useMainEvmAddress } from "../hooks/usePerpsAgent";
 import { requestFocus } from "../utils/positionFocus";
 import { syncPerpsAlerts } from "./alertsClient";
@@ -16,7 +16,7 @@ export const usePerpsAlertsBridge = ({ navigation, perpsVisible }) => {
   const user = useMainEvmAddress();
 
   useEffect(() => {
-    if (!PERPS_ENABLED || !user) return undefined;
+    if (!PERPS_ALERTS_ENABLED || !user) return undefined;
     syncPerpsAlerts({ reason: "app-start", user });
     const sub = AppState.addEventListener("change", (s) => {
       if (s === "active") syncPerpsAlerts({ reason: "foreground", user });
@@ -27,7 +27,7 @@ export const usePerpsAlertsBridge = ({ navigation, perpsVisible }) => {
   // Taps on alerts shown by notifee (foreground messages / data-only messages). Only acts on
   // liquidation alerts; other notifications keep their current behaviour.
   useEffect(() => {
-    if (!PERPS_ENABLED) return undefined;
+    if (!PERPS_ALERTS_ENABLED) return undefined;
     notifee
       .getInitialNotification()
       .then((initial) => {
@@ -42,7 +42,7 @@ export const usePerpsAlertsBridge = ({ navigation, perpsVisible }) => {
   const visibleRef = useRef(perpsVisible);
   visibleRef.current = perpsVisible;
   useEffect(() => {
-    if (!PERPS_ENABLED || !perpsVisible) return undefined;
+    if (!PERPS_ALERTS_ENABLED || !perpsVisible) return undefined;
     const open = () => {
       if (!visibleRef.current) return;
       const p = takePendingPerpsOpen();

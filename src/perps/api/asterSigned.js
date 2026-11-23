@@ -3,11 +3,12 @@
 import { ethers } from "ethers";
 import { asterFetch, fetchServerTime } from "./asterPublic";
 import { logPerpsError } from "../utils/perpsLog";
+import { PERPS_NETWORK } from "../network";
 
 const AGENT_DOMAIN = {
   name: "AsterSignTransaction",
   version: "1",
-  chainId: 1666, // Aster mainnet signing chain for agent requests
+  chainId: PERPS_NETWORK.agentSigningChainId, // agent requests: 1666 mainnet, 714 testnet
   verifyingContract: "0x0000000000000000000000000000000000000000",
 };
 const MESSAGE_TYPES = { Message: [{ name: "msg", type: "string" }] };

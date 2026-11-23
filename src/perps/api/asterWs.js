@@ -1,11 +1,12 @@
 import { AppState } from "react-native";
+import { PERPS_NETWORK } from "../network";
 
 // Single shared Aster market WebSocket.
 // - Base streams are in the URL; extra streams (e.g. btcusdt@kline_1h) use SUBSCRIBE/UNSUBSCRIBE.
 // - Opens only while someone listens; closes shortly after the last listener leaves
 //   (Perps screens unsubscribe on blur) and whenever the app goes to the background.
 // - Reconnects with exponential backoff and re-subscribes extra streams.
-const WS_URL = "wss://fstream.asterdex.com/stream?streams=";
+const WS_URL = PERPS_NETWORK.wsUrl; // mainnet: wss://fstream.asterdex.com/stream?streams=
 export const BASE_STREAMS = ["!ticker@arr", "!markPrice@arr@1s"];
 
 const CLOSE_GRACE_MS = 1500; // avoid close/reopen churn when moving between Perps screens

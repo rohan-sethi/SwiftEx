@@ -4,43 +4,15 @@
 // Vaults are from Aster's docs ("deposit-withdrawal": chain / chainId / contract address).
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { asterFetch } from "./asterPublic";
+import { PERPS_NETWORK, perpsStoreKey } from "../network";
 
-export const NATIVE_TOKEN = "0xfdae1ba7c826abdc4c99903c8056f82a1a04a615"; // Aster's native placeholder
+export const NATIVE_TOKEN = PERPS_NETWORK.nativeToken.toLowerCase(); // Aster's native placeholder
 
-// key = the app's CHAINS key (src/utilities/TokenUtils.js) used by the existing EVM signer.
-export const PERPS_CHAINS = [
-  {
-    chainId: 56,
-    key: "BNB",
-    name: "BNB Chain",
-    asterName: "BSC",
-    native: "BNB",
-    vault: "0x128463A60784c4D3f46c23Af3f65Ed859Ba87974",
-    explorer: "https://bscscan.com",
-    explorerName: "BscScan",
-  },
-  {
-    chainId: 1,
-    key: "ETH",
-    name: "Ethereum",
-    asterName: "ETH",
-    native: "ETH",
-    vault: "0x604DD02d620633Ae427888d41bfd15e38483736E",
-    explorer: "https://etherscan.io",
-    explorerName: "Etherscan",
-    gasNote: "Ethereum network fees can be a few dollars.",
-  },
-  {
-    chainId: 42161,
-    key: "ARB",
-    name: "Arbitrum",
-    asterName: "Arbitrum",
-    native: "ETH",
-    vault: "0x9E36CB86a159d479cEd94Fa05036f235Ac40E1d5",
-    explorer: "https://arbiscan.io",
-    explorerName: "Arbiscan",
-  },
-];
+// Chains Perps deposits from / withdraws to (src/perps/network.js). Mainnet: BSC, Ethereum, Arbitrum.
+export const PERPS_CHAINS = PERPS_NETWORK.chains;
+
+// Default deposit / withdraw chain: BSC (56) on mainnet, BSC Testnet (97) on testnet.
+export const DEFAULT_CHAIN_ID = PERPS_NETWORK.defaultChainId;
 export const chainById = (id) => PERPS_CHAINS.find((c) => c.chainId === Number(id)) || PERPS_CHAINS[0];
 export const txUrl = (chainId, hash) => `${chainById(chainId).explorer}/tx/${hash}`;
 
@@ -50,13 +22,13 @@ export const STABLES = ["USDT", "USDC", "USDCE", "USD1", "USDF"];
 export const SINGLE_ASSET_MARGIN = ["USDT", "USD1"];
 export const displayName = (name) => (name === "USDCE" ? "USDC.e" : name);
 
-const CACHE_KEY = "perps_asset_lists_v1";
+const CACHE_KEY = perpsStoreKey("perps_asset_lists_v1");
 const TTL = 24 * 60 * 60 * 1000;
 const PARTIAL_TTL = 5 * 60 * 1000;
 const fresh = (m) =>
   !!m && Array.isArray(m.withdraw) && m.withdraw.length > 0 && Date.now() - m.at < (m.partial ? PARTIAL_TTL : TTL);
 const IDS = PERPS_CHAINS.map((c) => c.chainId).join(",");
-const BAPI = "https://www.asterdex.com/bapi/futures/v1/public/future/aster";
+const BAPI = PERPS_NETWORK.bapiBase;
 
 let mem = null; // { at, deposit: [...], withdraw: [...], collateral: { ASSET: ratio } }
 let inflight = null;

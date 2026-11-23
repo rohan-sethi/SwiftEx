@@ -5,6 +5,7 @@ import { ethers } from "ethers";
 import { nativeSign } from "../../utilities/NativeSign";
 import { asterFetch, fetchServerTime } from "./asterPublic";
 import { saveAgent } from "../storage/agentKeyStore";
+import { PERPS_NETWORK } from "../network";
 
 export const AGENT_NAME = "@swiftex-mobile";
 export const AGENT_VALIDITY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (Aster docs give no max)
@@ -13,7 +14,7 @@ export const AGENT_VALIDITY_MS = 30 * 24 * 60 * 60 * 1000; // 30 days (Aster doc
 // agent in one call. Signed by the MAIN wallet over a fixed query-string message.
 // (The plain approveAgent / ApproveAgent typed-data path returned "Signature check failed"
 // for this wallet, which has not used Aster before.)
-const SIGNATURE_CHAIN_ID = 56; // EVM addresses; domain.chainId must equal signatureChainId
+const SIGNATURE_CHAIN_ID = PERPS_NETWORK.approveSignatureChainId; // 56 for EVM addresses; domain.chainId must equal signatureChainId
 const APPROVE_DOMAIN = {
   name: "AsterSignTransaction",
   version: "1",

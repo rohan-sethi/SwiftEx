@@ -1,12 +1,13 @@
 import { useEffect, useState } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { asterFetch, PUBLIC_TIMEOUT_MS } from "../api/asterPublic";
+import { PERPS_NETWORK } from "../network";
 
 // Coin logos for Perps, keyed by base asset (e.g. "BTC").
 // Source: Aster's public asset-logo list (covers all USDT perps). Cached in AsyncStorage for 24h
 // and loaded once per app session; every component shares the same in-memory map.
 
-const LOGO_URL = "https://www.asterdex.com/bapi/futures/v1/public/future/asset/ae/all-asset-logo";
+const LOGO_URL = PERPS_NETWORK.logoUrl;
 const STORAGE_KEY = "perps_asset_logos";
 const TTL_MS = 24 * 60 * 60 * 1000;
 const RETRY_AFTER_MS = 60 * 1000; // after a failed load, try again on next use (not more often)

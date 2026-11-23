@@ -24,6 +24,8 @@ import { formatPrice, formatPercent, formatCompactUsd } from "../utils/format";
 import { usePerpsAgent } from "../hooks/usePerpsAgent";
 import TradingCard from "../components/TradingCard";
 import AlertsSheet from "../components/AlertsSheet";
+import { PERPS_NETWORK } from "../network";
+import { PERPS_ALERTS_ENABLED } from "../config";
 import CoinLogo from "../components/CoinLogo";
 import { useAssetLogos } from "../hooks/useAssetLogos";
 import { useAppActive } from "../hooks/useAppActive";
@@ -337,29 +339,39 @@ const PerpsHome = () => {
     [theme, openMarket]
   );
 
+  const titleText = (
+    <Text onLongPress={showErrorLog} delayLongPress={1200} style={[styles.title, { color: theme.headingTx }]}>
+      Perps
+    </Text>
+  );
   const header = (
     <View>
       <View style={styles.titleRow}>
-        <Text
-          onLongPress={showErrorLog}
-          delayLongPress={1200}
-          style={[styles.title, { color: theme.headingTx }]}
-        >
-          Perps
-        </Text>
+        {PERPS_NETWORK.isTestnet ? (
+          <View style={styles.titleWrap}>
+            {titleText}
+            <View style={[styles.testnetBadge, { borderColor: theme.warn }]}>
+              <Text style={[styles.testnetBadgeTx, { color: theme.warn }]}>TESTNET</Text>
+            </View>
+          </View>
+        ) : (
+          titleText
+        )}
         {agentState.status === "enabled" ? (
           <View style={styles.headBtns}>
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel="Liquidation alerts"
-              onPress={() => {
-                setMenuOpen(false);
-                setAlertsOpen(true);
-              }}
-              style={styles.menuBtn}
-            >
-              <Icon name="notifications-outline" type="ionicon" size={23} color={theme.headingTx} />
-            </TouchableOpacity>
+            {PERPS_ALERTS_ENABLED ? (
+              <TouchableOpacity
+                accessibilityRole="button"
+                accessibilityLabel="Liquidation alerts"
+                onPress={() => {
+                  setMenuOpen(false);
+                  setAlertsOpen(true);
+                }}
+                style={styles.menuBtn}
+              >
+                <Icon name="notifications-outline" type="ionicon" size={23} color={theme.headingTx} />
+              </TouchableOpacity>
+            ) : null}
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel="More options"
@@ -572,13 +584,15 @@ const PerpsHome = () => {
               user={agentState.user}
             />
           ) : null}
-          <AlertsSheet
-            visible={alertsOpen}
-            onClose={() => setAlertsOpen(false)}
-            theme={theme}
-            user={agentState.user}
-            raw={accountState.alertsRaw}
-          />
+          {PERPS_ALERTS_ENABLED ? (
+            <AlertsSheet
+              visible={alertsOpen}
+              onClose={() => setAlertsOpen(false)}
+              theme={theme}
+              user={agentState.user}
+              raw={accountState.alertsRaw}
+            />
+          ) : null}
           <WithdrawSheet
             visible={sheet === "withdraw"}
             onClose={() => setSheet(null)}
@@ -612,6 +626,9 @@ const styles = StyleSheet.create({
     paddingRight: 12,
   },
   headBtns: { flexDirection: "row", alignItems: "center" },
+  titleWrap: { flexDirection: "row", alignItems: "center" },
+  testnetBadge: { borderWidth: 1, borderRadius: 4, paddingHorizontal: 6, paddingVertical: 1, marginLeft: -9 },
+  testnetBadgeTx: { fontSize: 11, fontWeight: "800", letterSpacing: 0.5 },
   menuBtn: {
     padding: 6,
   },

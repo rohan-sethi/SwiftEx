@@ -8,7 +8,7 @@ export const BACKOFF_MS = 60 * 1000; // first wait after a 429 (doubles, max 10 
 export const MAX_BACKOFF_MS = 10 * 60 * 1000;
 
 // deps:
-//   enabled()                     -> boolean (PERPS_ENABLED)
+//   enabled()                     -> boolean (PERPS_ALERTS_ENABLED: off on testnet)
 //   now()                         -> ms
 //   getToken()                    -> FCM token | null
 //   platform                      -> 'android' | 'ios' | 'web'

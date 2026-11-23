@@ -4,7 +4,7 @@ import { Linking, PermissionsAndroid, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import messaging from "@react-native-firebase/messaging";
 import notifee, { AuthorizationStatus } from "@notifee/react-native";
-import { PERPS_ENABLED } from "../config";
+import { PERPS_ALERTS_ENABLED } from "../config";
 import { showInfo } from "../utils/modalSafe";
 import { logPerpsError } from "../utils/perpsLog";
 
@@ -45,7 +45,7 @@ export const turnOnNotifications = async () => {
 // Call after a position was opened. Never throws.
 export const maybeAskForAlertsPermission = async () => {
   try {
-    if (!PERPS_ENABLED) return;
+    if (!PERPS_ALERTS_ENABLED) return;
     if (await notificationsOn()) return;
     const until = Number(await AsyncStorage.getItem(SNOOZE_KEY).catch(() => null)) || 0;
     if (Date.now() < until) return;

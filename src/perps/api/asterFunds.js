@@ -14,14 +14,19 @@ import { fustionEvmTxManager } from "../../utilities/evmTxManager";
 import { signAsterWithdrawRequest } from "./asterWithdrawSigner";
 import { asterFetch } from "./asterPublic";
 import { PERPS_CHAINS, getAssetLists } from "./asterAssets";
+import { PERPS_NETWORK } from "../network";
 import { asterSignedRequest, getServerNowMs, syncServerTime, nextNonceMicros } from "./asterSigned";
 import { toTokenUnits, fromTokenUnits, toPlain, fromUnits, toUnits, isPositive } from "../utils/decimal";
 
-export const ASTER_VAULT_BSC = "0x128463A60784c4D3f46c23Af3f65Ed859Ba87974";
-export const USDT_BSC = "0x55d398326f99059fF775485246999027B3197955";
-export const USDT_DECIMALS = 18;
+// Legacy USDT-only deposit (mainnet: USDT on BSC into 0x1284…7974). Values from src/perps/network.js.
+export const ASTER_VAULT_BSC = PERPS_NETWORK.chains.find((c) => c.chainId === PERPS_NETWORK.usdt.chainId).vault;
+export const USDT_BSC = PERPS_NETWORK.usdt.address;
+export const USDT_DECIMALS = PERPS_NETWORK.usdt.decimals;
 const PERP_BROKER = 0; // any value except 1000 credits the futures account (docs)
-const BSC_CHAIN_KEY = "BNB"; // CHAINS key used by the app for BNB Smart Chain
+const BSC_CHAIN_KEY = PERPS_NETWORK.usdt.key; // mainnet: "BNB", the app's CHAINS key for BNB Smart Chain
+const BSC_CHAIN_ID = PERPS_NETWORK.usdt.chainId; // mainnet: 56
+const BAPI = PERPS_NETWORK.bapiBase;
+const DEPOSIT_SEND_OFF = "Testnet deposits can't be sent from this app version yet";
 const FALLBACK_DEPOSIT_GAS = ethers.BigNumber.from(180000); // used when depositFor can't be simulated yet
 const GAS_BUFFER_PCT = 125;
 
@@ -37,6 +42,9 @@ const erc20 = new ethers.utils.Interface(ERC20_ABI);
 const vault = new ethers.utils.Interface(VAULT_ABI);
 
 const rpcUrls = (chainKey = BSC_CHAIN_KEY) => {
+  // Testnet chains carry their own RPCs (they are not in the app's CHAINS); mainnet uses CHAINS as before.
+  const own = PERPS_NETWORK.chains.find((c) => c.key === chainKey && c.rpcUrls);
+  if (own) return own.rpcUrls;
   const c = CHAINS[chainKey] || {};
   return [c.rpcUrl, ...(c.backupRPCUrls || [])].filter(Boolean);
 };
@@ -54,7 +62,7 @@ export const withChainProvider = async (chainKey, chainId, fn) => {
   }
   throw lastErr || new Error("No RPC available");
 };
-const withProvider = (fn) => withChainProvider(BSC_CHAIN_KEY, 56, fn);
+const withProvider = (fn) => withChainProvider(BSC_CHAIN_KEY, BSC_CHAIN_ID, fn);
 
 // Wallet balances on BSC: USDT, BNB, and the vault allowance.
 export const getDepositWalletState = async (user) =>
@@ -77,9 +85,9 @@ export const getDepositWalletState = async (user) =>
 // Wallet nonces (read-only), used to time "Deposit sent" and to resume after a relaunch.
 // chain: { key, chainId } from asterAssets.PERPS_CHAINS (default BSC).
 export const getPendingNonce = (user, chain) =>
-  withChainProvider(chain ? chain.key : BSC_CHAIN_KEY, chain ? chain.chainId : 56, (p) => p.getTransactionCount(user, "pending"));
+  withChainProvider(chain ? chain.key : BSC_CHAIN_KEY, chain ? chain.chainId : BSC_CHAIN_ID, (p) => p.getTransactionCount(user, "pending"));
 export const getLatestNonce = (user, chain) =>
-  withChainProvider(chain ? chain.key : BSC_CHAIN_KEY, chain ? chain.chainId : 56, (p) => p.getTransactionCount(user, "latest"));
+  withChainProvider(chain ? chain.key : BSC_CHAIN_KEY, chain ? chain.chainId : BSC_CHAIN_ID, (p) => p.getTransactionCount(user, "latest"));
 
 // ------------------------------------------------- multi-chain / multi-asset deposit
 // chain = asterAssets.PERPS_CHAINS entry; asset = { name, contract, decimals, isNative }.
@@ -202,6 +210,7 @@ export const prepareChainDeposit = async ({ chain, asset, user, amount }) => {
 // Last check right before signing: everything in the plan must belong to the selected chain.
 // Returns an error string (abort) or null.
 export const verifyDepositPlan = async (user, plan) => {
+  if (!PERPS_NETWORK.depositSendEnabled) return DEPOSIT_SEND_OFF;
   const chain = PERPS_CHAINS.find((c) => c.chainId === Number(plan.chainId));
   if (!chain || chain.key !== plan.chainKey) return "Unknown network";
   const appChain = CHAINS[plan.chainKey];
@@ -263,12 +272,12 @@ export const executeChainDeposit = async (user, plan, onStep) => {
   return { ok: true, approveHash, txHash };
 };
 
-export const NATIVE_TOKEN_ADDRESS = "0xfdAE1bA7C826aBDc4c99903c8056f82a1A04a615";
+export const NATIVE_TOKEN_ADDRESS = PERPS_NETWORK.nativeToken;
 
 // Public: deposit asset config (min deposit) for USDT on BSC perps.
 export const fetchDepositAsset = async () => {
   const { data, error } = await asterFetch(
-    "https://www.asterdex.com/bapi/futures/v1/public/future/aster/deposit/assets?chainIds=56&networks=EVM&accountType=perp",
+    `${BAPI}/deposit/assets?chainIds=${BSC_CHAIN_ID}&networks=EVM&accountType=perp`,
     { timeoutMs: 15000 }
   );
   if (error) return { data: null, error };
@@ -344,6 +353,7 @@ export const prepareDeposit = async (user, amount, minDeposit = "0") => {
 // Broadcast the plan via the app's existing native-signing EVM path (legacy gasPrice).
 // onStep: 'approving' | 'depositing' | 'waiting'
 export const executeDeposit = async (user, plan, onStep) => {
+  if (!PERPS_NETWORK.depositSendEnabled) return { ok: false, step: "deposit", error: DEPOSIT_SEND_OFF };
   let approveHash = null;
   if (plan.needsApprove) {
     if (onStep) onStep("approving");
@@ -364,11 +374,11 @@ export const executeDeposit = async (user, plan, onStep) => {
 const WITHDRAW_DOMAIN = {
   name: "Aster",
   version: "1",
-  chainId: 56,
+  chainId: BSC_CHAIN_ID, // overridden per withdraw chain
   verifyingContract: "0x0000000000000000000000000000000000000000",
 };
 // Aster docs: chainId -> "destination Chain" name.
-const WITHDRAW_CHAIN_NAMES = { 1: "ETH", 56: "BSC", 42161: "Arbitrum" };
+const WITHDRAW_CHAIN_NAMES = PERPS_NETWORK.withdrawChainNames; // mainnet: { 1: "ETH", 56: "BSC", 42161: "Arbitrum" }
 const ACTION_TYPES = {
   Action: [
     { name: "type", type: "string" },
@@ -393,7 +403,7 @@ const plainAmount = (v) => fromUnits(toUnits(toPlain(v))); // trailing zeros str
 // Limits + fee: signed POST /fapi/v3/aster/user-withdraw-info, fallback to the public fee estimate.
 export const fetchWithdrawInfo = async (agent, user) => {
   const info = await asterSignedRequest({ agent, user, method: "POST", path: "/fapi/v3/aster/user-withdraw-info" });
-  const chain = info.data?.balances?.USDT?.chainBalances?.["56"];
+  const chain = info.data?.balances?.USDT?.chainBalances?.[String(BSC_CHAIN_ID)];
   if (!info.error && chain) {
     return {
       data: { maxAmount: String(chain.perpMaxWithdrawAmount ?? "0"), fee: String(chain.withdrawFee ?? "0"), source: "user-withdraw-info" },
@@ -402,7 +412,7 @@ export const fetchWithdrawInfo = async (agent, user) => {
     };
   }
   const est = await asterFetch(
-    "https://www.asterdex.com/bapi/futures/v1/public/future/aster/estimate-withdraw-fee?chainId=56&network=EVM&currency=USDT&accountType=perp",
+    `${BAPI}/estimate-withdraw-fee?chainId=${BSC_CHAIN_ID}&network=EVM&currency=USDT&accountType=perp`,
     { timeoutMs: 15000 }
   );
   const fee = est.data?.data?.gasCost;
@@ -437,7 +447,7 @@ export const fetchWithdrawOptions = async (agent, user) => {
 // Public fee estimate for one asset/chain (fallback when user-withdraw-info has no fee).
 export const estimateWithdrawFee = async (asset, chainId) => {
   const est = await asterFetch(
-    `https://www.asterdex.com/bapi/futures/v1/public/future/aster/estimate-withdraw-fee?chainId=${chainId}&network=EVM&currency=${encodeURIComponent(
+    `${BAPI}/estimate-withdraw-fee?chainId=${chainId}&network=EVM&currency=${encodeURIComponent(
       asset
     )}&accountType=perp`,
     { timeoutMs: 15000 }
@@ -449,7 +459,7 @@ export const estimateWithdrawFee = async (asset, chainId) => {
 const MESSAGE_DOMAIN = {
   name: "AsterSignTransaction",
   version: "1",
-  chainId: 1666,
+  chainId: PERPS_NETWORK.agentSigningChainId, // mainnet: 1666
   verifyingContract: "0x0000000000000000000000000000000000000000",
 };
 const MESSAGE_TYPES = { Message: [{ name: "msg", type: "string" }] };
@@ -468,7 +478,8 @@ const recovers = (fn, user) => {
 // Both signatures come from ONE native call (one PIN/biometric prompt) that only accepts an
 // own-address USDT withdraw. Both are checked locally with ethers before anything is sent.
 // POST /fapi/v3/aster/user-withdraw. Resolves { data, error, code } (never throws for API errors).
-export const withdrawWithMainWallet = async (user, amount, fee, { asset = "USDT", chainId = 56 } = {}) => {
+export const withdrawWithMainWallet = async (user, amount, fee, { asset = "USDT", chainId = BSC_CHAIN_ID } = {}) => {
+  if (!PERPS_NETWORK.withdrawEnabled) throw new Error("Testnet withdrawals aren't available in this app version yet");
   const wChain = WITHDRAW_CHAIN_NAMES[String(chainId)];
   if (!wChain) throw new Error("Unsupported chain");
   const domain = { ...WITHDRAW_DOMAIN, chainId: Number(chainId) };
@@ -490,7 +501,7 @@ export const withdrawWithMainWallet = async (user, amount, fee, { asset = "USDT"
     amount: plainAmount(amount),
     fee: plainAmount(fee),
     nonce: userNonce,
-    "aster chain": "Mainnet",
+    "aster chain": PERPS_NETWORK.withdrawAsterChain, // mainnet: "Mainnet"
   };
   const query = new URLSearchParams({
     user: owner,
